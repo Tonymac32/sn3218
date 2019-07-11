@@ -1,3 +1,8 @@
+2019.07.11
+----------
+
+Fork from Pimoroni, adaptation to MicroPython for use with ESP32
+
 1.2.7
 -----
 

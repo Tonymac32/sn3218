@@ -1,14 +1,6 @@
-import sys
+from machine import Pin, I2C
 
-try:
-    from smbus import SMBus
-except ImportError:
-    if sys.version_info[0] < 3:
-        raise ImportError("This library requires python-smbus\nInstall with: sudo apt install python-smbus")
-    elif sys.version_info[0] == 3:
-        raise ImportError("This library requires python3-smbus\nInstall with: sudo apt install python3-smbus")
-
-__version__ = '1.2.7'
+__version__ = '2019.07.11'
 
 I2C_ADDRESS = 0x54
 CMD_ENABLE_OUTPUT = 0x00
@@ -16,32 +8,29 @@ CMD_SET_PWM_VALUES = 0x01
 CMD_ENABLE_LEDS = 0x13
 CMD_UPDATE = 0x16
 CMD_RESET = 0x17
-
-
-def i2c_bus_id():
-    revision = ([l[12:-1] for l in open('/proc/cpuinfo', 'r').readlines() if l[:8] == "Revision"]+['0000'])[0]
-    return 1 if int(revision, 16) >= 4 else 0
+SDA_PIN = 21
+SCL_PIN = 22
 
 
 def enable():
     """ 
     Enables output.
     """
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_ENABLE_OUTPUT, [0x01])
+    i2c.writeto_mem(I2C_ADDRESS, CMD_ENABLE_OUTPUT, bytes([0x01]))
 
 
 def disable():
     """ 
     Disables output.
     """
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_ENABLE_OUTPUT, [0x00])
+    i2c.writeto_mem(I2C_ADDRESS, CMD_ENABLE_OUTPUT, bytes([0x00]))
 
 
 def reset():
     """ 
     Resets all internal registers.
     """
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_RESET, [0xFF])
+    i2c.writeto_mem(I2C_ADDRESS, CMD_RESET, bytes([0xFF]))
 
 
 def enable_leds(enable_mask):
@@ -58,9 +47,9 @@ def enable_leds(enable_mask):
     if type(enable_mask) is not int:
         raise TypeError("enable_mask must be an integer")
 
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_ENABLE_LEDS, 
-                             [enable_mask & 0x3F, (enable_mask >> 6) & 0x3F, (enable_mask >> 12) & 0X3F])
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_UPDATE, [0xFF])
+    i2c.writeto_mem(I2C_ADDRESS, CMD_ENABLE_LEDS, 
+                             bytes([enable_mask & 0x3F, (enable_mask >> 6) & 0x3F, (enable_mask >> 12) & 0X3F]))
+    i2c.writeto_mem(I2C_ADDRESS, CMD_UPDATE, bytes([0xFF]))
 
 
 def channel_gamma(channel, gamma_table):
@@ -101,11 +90,10 @@ def output(values):
     if type(values) is not list or len(values) != 18:
         raise TypeError("values must be a list of 18 integers")
 
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_SET_PWM_VALUES, [channel_gamma_table[i][values[i]] for i in range(18)])
-    i2c.write_i2c_block_data(I2C_ADDRESS, CMD_UPDATE, [0xFF])
+    i2c.writeto_mem(I2C_ADDRESS, CMD_SET_PWM_VALUES, bytes([channel_gamma_table[i][values[i]] for i in range(18)]))
+    i2c.writeto_mem(I2C_ADDRESS, CMD_UPDATE, bytes([0xFF]))
 
-
-i2c = SMBus(i2c_bus_id())
+i2c = I2C(scl=Pin(SCL_PIN),sda=Pin(SDA_PIN), freq=400000)
 
 # generate a good default gamma table
 default_gamma_table = [int(pow(255, float(i - 1) / 255)) for i in range(256)]
